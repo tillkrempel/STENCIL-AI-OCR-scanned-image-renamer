@@ -1,98 +1,105 @@
 # AI PDF OCR & Smart Renamer Pipeline
 
-Eine automatisierte, gehärtete Pipeline zum Einlesen gescannter PDF-Dokumente, Durchführen von Texterkennung (OCR via **OCRmyPDF** / **Tesseract**) und strukturierter Dateibenennung mithilfe lokaler Large Language Models (**Ollama** / **Gemma / Qwen**).
+An automated, hardened pipeline for ingesting scanned PDF documents, performing optical character recognition (OCR via **OCRmyPDF** / **Tesseract**), and applying structured file renaming using local Large Language Models (**Ollama** / **Gemma / Qwen**).
 
 ---
 
-## 📑 Inhaltsverzeichnis
+## 📑 Table of Contents
 
-1. [Funktionsweise](#-funktionsweise)
-2. [Sicherheit & Prompt Injection Protection](#-sicherheit--prompt-injection-protection)
-3. [Ordnerstruktur & Run-Logik](#-ordnerstruktur--run-logik)
-4. [Fehlercodes & Verfolgbarkeit](#-fehlercodes--verfolgbarkeit)
-5. [Setup-Varianten](#-setup-varianten)
-   * [Variante 1: Standard-Setup (GPU / Auto-Detect)](#variante-1-standard-setup-gpu--auto-detect)
-   * [Variante 2: Minimal-Setup (Alpine & Inline Ollama)](#variante-2-minimal-setup-alpine--inline-ollama)
-   * [Variante 3: Decoupled Setup (Client / Remote Server)](#variante-3-decoupled-setup-client--remote-server)
-6. [Quellcode der Kernskripte](#-quellcode-der-kernskripte)
-   * [`process.py`](#processpy)
-   * [`run.sh`](#runsh)
-   * [`detect_gpu.sh`](#detect_gpush)
-   * [`configure_model.sh`](#configure_modelsh)
-7. [Umgebungsvariablen](#-umgebungsvariablen)
+1. [How It Works](https://www.google.com/search?q=%23-how-it-works)
+2. [Security & Prompt Injection Protection](https://www.google.com/search?q=%23-security--prompt-injection-protection)
+3. [Folder Structure & Run Logic](https://www.google.com/search?q=%23-folder-structure--run-logic)
+4. [Error Codes & Traceability](https://www.google.com/search?q=%23-error-codes--traceability)
+5. [Setup Variants](https://www.google.com/search?q=%23-setup-variants)
+* [Variant 1: Standard Setup (GPU / Auto-Detect)](https://www.google.com/search?q=%23variant-1-standard-setup-gpu--auto-detect)
+* [Variant 2: Minimal Setup (Alpine & Inline Ollama)](https://www.google.com/search?q=%23variant-2-minimal-setup-alpine--inline-ollama)
+* [Variant 3: Decoupled Setup (Client / Remote Server)](https://www.google.com/search?q=%23variant-3-decoupled-setup-client--remote-server)
 
----
 
-## 📄 Funktionsweise
+6. [Core Scripts Source Code](https://www.google.com/search?q=%23-core-scripts-source-code)
+* [`process.py`](https://www.google.com/search?q=%23processpy)
+* [`run.sh`](https://www.google.com/search?q=%23runsh)
+* [`detect_gpu.sh`](https://www.google.com/search?q=%23detect_gpush)
+* [`configure_model.sh`](https://www.google.com/search?q=%23configure_modelsh)
 
-1. **PDF Scan & OCR:** Neue PDFs im Ordner `./data` werden erfasst und mittels `ocrmypdf` um eine unsichtbare Textschicht ergänzt (`--skip-text --deskew`).
-2. **Text-Extraktion:** `pdftotext` zieht den Text aus den ersten Seiten der Datei sicher im Speicher aus.
-3. **AI-Metadaten-Analyse:** Das lokale LLM liest den Inhalt und extrahiert strukturiert Datum, Absender und Betreff.
-4. **Isolierte Run-Ordner & Protokollierung:** Jeder Durchlauf erzeugt ein eigenes Unterverzeichnis `Run<N>` mit Logdatei, Farbausgabe auf der Konsole und Zeitmessung.
-5. **Schutz vor Datenverlust:** Die primäre Dokumenten-ID (ursprünglicher Dateiname) bleibt immer als Suffix erhalten. Existierende Dateien werden nicht überschrieben.
+
+7. [Environment Variables](https://www.google.com/search?q=%23-environment-variables)
 
 ---
 
-## 🛡️ Sicherheit & Prompt Injection Protection
+## 📄 How It Works
 
-Das System ist gegen bösartige Eingaben und Code-Execution-Versuche in gescannten Dokumenten gehärtet:
-
-* **No Shell Execution:** `pdftotext` und `python3` werden ohne Shell-Interpreting (`shell=False`) gestartet. Dokumenteninhalte können niemals als Systembefehle ausgeführt werden.
-* **Prompt Guarding:** Der Dokumenteninhalt wird explizit in `<DOCUMENT_CONTENT_DATA>` gekapselt. Der System-Prompt zwingt das Modell, Anweisungen im Text strikt zu ignorieren.
-* **Structured Output Enforcement:** Ollama liefert die Metadaten erzwungen im strukturierten `json`-Format.
-* **Strict Sanitizing:** Extrahierte Strings werden per Regex (`[^a-zA-Z0-9_-]`) gefiltert. Pfadtrennzeichen (`/`, `\`) werden eliminiert (**Path-Traversal-Schutz**).
+1. **PDF Scan & OCR:** New PDFs in the `./data` directory are detected and augmented with an invisible text layer using `ocrmypdf` (`--skip-text --deskew`).
+2. **Text Extraction:** `pdftotext` securely extracts text from the first pages of the file directly in memory.
+3. **AI Metadata Analysis:** The local LLM reads the content and extracts date, sender, and subject in a structured format.
+4. **Isolated Run Folders & Logging:** Each run creates its own `Run<N>` subdirectory containing log files, colored console output, and execution timing.
+5. **Data Loss Prevention:** The primary document ID (original filename) is always retained as a suffix. Existing files are never overwritten.
 
 ---
 
-## 📂 Ordnerstruktur & Run-Logik
+## 🛡️ Security & Prompt Injection Protection
 
-Bei jedem Ausführen baut die Pipeline folgende isolierte Struktur im Datenordner auf:
+The system is hardened against malicious inputs and code execution attempts within scanned documents:
+
+* **No Shell Execution:** `pdftotext` and `python3` are spawned without shell interpreting (`shell=False`). Document contents can never be executed as system commands.
+* **Prompt Guarding:** Document content is explicitly encapsulated inside `<DOCUMENT_CONTENT_DATA>`. The system prompt strictly forces the model to ignore instructions found within the document text.
+* **Structured Output Enforcement:** Ollama strictly enforces output delivery in `json` format.
+* **Strict Sanitizing:** Extracted strings are filtered using regex (`[^a-zA-Z0-9_-]`). Path separators (`/`, `\`) are eliminated (**Path Traversal Protection**).
+
+---
+
+## 📂 Folder Structure & Run Logic
+
+On every execution, the pipeline builds the following isolated structure inside the data directory:
 
 ```text
 data/
-├── 26072026113621.pdf                 <-- Quell-Datei im Stammverzeichnis
+├── 26072026113621.pdf                 <-- Source file in root directory
 ├── Run1/
-│   ├── Run1.log                       <-- Ausführliches Protokoll mit Config & Laufzeit
+│   ├── Run1.log                       <-- Detailed log with config & runtime info
 │   ├── ocr/
-│   │   └── 26072026113621.pdf         <-- Durchsuchbares PDF
+│   │   └── 26072026113621.pdf         <-- Searchable PDF
 │   └── renamed/
 │       └── 2026-07-26_Telekom_Rechnung_26072026113621.pdf
 ├── Run2/
 │   ├── Run2.log
 │   ├── ocr/ ...
+
 ```
 
-## 🚨 Fehlercodes & Verfolgbarkeit
+## 🚨 Error Codes & Traceability
 
-Sollte während der Verarbeitung ein Fehler auftreten, schlägt die Pipeline nicht fehl, sondern bricht die Verarbeitung des betroffenen Dokuments kontrolliert ab. 
+If an error occurs during processing, the pipeline does not crash; instead, it gracefully aborts processing for the affected document.
 
-Damit **keine Dokumente verloren gehen** und die Zuordnung zur Quell-Datei im Stammverzeichnis transparent bleibt, wird das PDF im Ordner `renamed/` unter Beibehaltung der **ursprünglichen Primär-ID** (Dateiname der Quell-Datei ohne `.pdf`) mit einem entsprechenden Fehler-Präfix gespeichert:
+To ensure **no documents are lost** and maintaining full visibility of their mapping to the source file in the root directory, the PDF is saved in the `renamed/` directory with a corresponding error prefix while retaining its **original primary ID** (source filename without `.pdf`):
 
-| Fehlercode | Ursache & Bedeutung | Auslöser / Abhilfe |
-| :--- | :--- | :--- |
-| `ERR01_NOTEXT_<ID>.pdf` | **Kein Text extrahierbar** | `pdftotext` konnte nach dem OCR-Schritt keinen verwertbaren Text auslesen (z. B. leeres Dokument, stark beschädigter Scan oder fehlerhafte PDF-Struktur). |
-| `ERR02_OLLAMA_UNREACHABLE_<ID>.pdf` | **API nicht erreichbar** | Der Ollama-Container/Server war während des Aufrufs nicht unter `OLLAMA_URL` erreichbar (z. B. Netzwerk-Timeout, Container noch im Startvorgang oder falsche IP). |
-| `ERR03_MODEL_ERROR_<ID>.pdf` | **Modell-/Validierungsfehler** | Das LLM hat kein gültiges JSON zurückgeliefert, der Response entsprach nicht dem Schema, oder der Prompt Guard hat eine versuchte Prompt Injection / ungültige Inhalte abgefangen. |
+| Error Code | Cause & Meaning | Trigger / Resolution |
+| --- | --- | --- |
+| `ERR01_NOTEXT_<ID>.pdf` | **No text extractable** | `pdftotext` could not extract usable text after the OCR step (e.g., empty document, heavily damaged scan, or corrupted PDF structure). |
+| `ERR02_OLLAMA_UNREACHABLE_<ID>.pdf` | **API unreachable** | The Ollama container/server was not reachable at `OLLAMA_URL` during execution (e.g., network timeout, container still starting up, or wrong IP). |
+| `ERR03_MODEL_ERROR_<ID>.pdf` | **Model / Validation Error** | The LLM did not return valid JSON, the response did not conform to the schema, or the prompt guard caught a prompt injection attempt / invalid content. |
 
 ---
 
-### Verfolgbarkeits-Garantie (ID-Traceability)
+### Traceability Guarantee (ID Traceability)
 
-Jedes verarbeitete Dokument behält unabhängig vom Ausgang (Erfolg oder Fehler) seine eindeutige Kennung. 
+Every processed document retains its unique identifier regardless of the outcome (success or error).
 
-* **Erfolgsfall (`SUCCESS`):**  
-  `2026-07-26_Telekom_Rechnung_26072026113621.pdf`  
-  *(Muster: `<Datum>_<Sender>_<Betreff>_<Original-ID>.pdf`)*
+* **Success Case (`SUCCESS`):**
+`2026-07-26_Telekom_Rechnung_26072026113621.pdf`
+*(Pattern: `<Date>_<Sender>_<Subject>_<Original-ID>.pdf`)*
+* **Error Case (`ERROR`):**
+`ERR01_NOTEXT_26072026113621.pdf`
+*(Pattern: `<ErrorCode>_<Original-ID>.pdf`)*
 
-* **Fehlerfall (`ERROR`):**  
-  `ERR01_NOTEXT_26072026113621.pdf`  
-  *(Muster: `<Fehlercode>_<Original-ID>.pdf`)*
+This allows any file in the `renamed/` directory to be immediately matched to its source file in the root folder (`26072026113621.pdf`) and its detailed logs in `Run<N>/Run<N>.log` without searching.
 
-Dadurch lässt sich im Ordner `renamed/` jede Datei ohne Suchen sofort der ursprünglichen Datei im Stammverzeichnis (`26072026113621.pdf`) sowie den Detail-Logs im jeweiligen `Run<N>/Run<N>.log` zuordnen.
+---
 
-## 🛠️ Setup-Varianten
+## 🛠️ Setup Variants
 
-### Erforderliche Dateistruktur im Projekt
+### Required Project File Structure
+
 ```text
 pdf-ocr-pipeline/
 ├── docker-compose.yml
@@ -101,12 +108,13 @@ pdf-ocr-pipeline/
 ├── detect_gpu.sh
 ├── process.py
 ├── run.sh
-└── data/             <-- Quell-PDFs hier ablegen
+└── data/             <-- Place source PDFs here
+
 ```
 
-### Variante 1: Standard-Setup (GPU / Auto-Detect)
+### Variant 1: Standard Setup (GPU / Auto-Detect)
 
-Ideal für lokale Rechner oder Server mit NVIDIA-GPU. Ermittelt VRAM automatisch (`nvidia-smi` / Linux Sysfs / `/proc/meminfo`) und wählt das passende Modell (`qwen2.5:3b`, `7b`, `14b` oder `gemma3:27b`).
+Ideal for local workstations or servers with NVIDIA GPUs. Automatically detects available VRAM (`nvidia-smi` / Linux Sysfs / `/proc/meminfo`) and selects the appropriate model (`qwen2.5:3b`, `7b`, `14b`, or `gemma3:27b`).
 
 #### `docker-compose.yml`
 
@@ -157,21 +165,20 @@ volumes:
 
 ```
 
-* **Starten:**
+* **Launch:**
+
 ```bash
 chmod +x configure_model.sh detect_gpu.sh run.sh process.py
-./configure_model.sh  # Interaktiver Auswahldialog (optional)
+./configure_model.sh  # Interactive model selection menu (optional)
 docker compose up --build
 
 ```
 
-
-
 ---
 
-### Variante 2: Minimal-Setup (Alpine & Inline Ollama)
+### Variant 2: Minimal Setup (Alpine & Inline Ollama)
 
-Single-Container-Setup für schwache Hardware (z. B. Raspberry Pi oder kleinen NAS-Server). Benötigt unter 200 MB RAM im Leerlauf.
+Single-container setup designed for low-power hardware (e.g., Raspberry Pi or lightweight NAS servers). Consumes under 200 MB RAM at idle.
 
 #### `docker-compose.minimal.yml`
 
@@ -213,27 +220,26 @@ WORKDIR /app
 COPY process.py run.sh ./
 RUN chmod +x run.sh process.py
 
-RUN curl -fsSL [https://ollama.com/install.sh](https://ollama.com/install.sh) | sh
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 CMD sh -c "ollama serve & sleep 3 && ollama pull $OLLAMA_MODEL && /app/run.sh"
 
 ```
 
-* **Starten:**
+* **Launch:**
+
 ```bash
 docker compose -f docker-compose.minimal.yml up --build
 
 ```
 
-
-
 ---
 
-### Variante 3: Decoupled Setup (Client / Remote Server)
+### Variant 3: Decoupled Setup (Client / Remote Server)
 
-Trennt die rechenintensive Inferenz auf einem externen GPU-Server von der lokalen PDF-Verarbeitung.
+Separates compute-heavy LLM inference on a remote GPU server from local PDF processing.
 
-#### Server-Seite (`docker-compose.server.yml`)
+#### Server Side (`docker-compose.server.yml`)
 
 ```yaml
 services:
@@ -260,7 +266,7 @@ volumes:
 
 ```
 
-#### Client-Seite (`docker-compose.client.yml`)
+#### Client Side (`docker-compose.client.yml`)
 
 ```yaml
 services:
@@ -279,28 +285,27 @@ services:
 
 ```
 
-* **Starten:**
-1. Auf dem GPU-Server: `docker compose -f docker-compose.server.yml up -d`
-2. Auf der lokalen Client-Maschine: `docker compose -f docker-compose.client.yml up --build`
+* **Launch:**
 
-
+1. On the GPU server: `docker compose -f docker-compose.server.yml up -d`
+2. On the local client machine: `docker compose -f docker-compose.client.yml up --build`
 
 ---
 
-## ⚙️ Umgebungsvariablen
+## ⚙️ Environment Variables
 
-Die Pipeline lässt sich über folgende Umgebungsvariablen (in `.env` oder der jeweiligen `docker-compose.yml`) anpassen:
+The pipeline can be configured using the following environment variables (defined in `.env` or in the respective `docker-compose.yml` file):
 
-| Variable | Default-Wert | Beschreibung |
+| Variable | Default Value | Description |
 | --- | --- | --- |
-| `OLLAMA_URL` | `http://ollama:11434` | Endpoint der Ollama-Instanz. |
-| `OLLAMA_MODEL` | `qwen2.5:3b` | Das zu verwendende LLM-Modell. |
-| `FILENAME_PATTERN` | `<YYYY-MM-DD>_<Sender>_<Subject>` | Muster für den generierten Dateinamen. |
-| `OCR_LANG` | `deu` | Sprache für Tesseract OCR (`deu`, `eng`, `deu+eng`). |
+| `OLLAMA_URL` | `http://ollama:11434` | Endpoint of the Ollama instance. |
+| `OLLAMA_MODEL` | `qwen2.5:3b` | The LLM model to use. |
+| `FILENAME_PATTERN` | `<YYYY-MM-DD>_<Sender>_<Subject>` | Pattern for the generated filename. |
+| `OCR_LANG` | `deu` | Language for Tesseract OCR (`deu`, `eng`, `deu+eng`). |
 
 ---
 
-## 📊 Beispiel-Logdatei (`data/Run1/Run1.log`)
+## 📊 Sample Log File (`data/Run1/Run1.log`)
 
 ```text
 ========================================================================
