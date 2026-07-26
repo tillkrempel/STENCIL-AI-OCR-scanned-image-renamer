@@ -1,0 +1,14 @@
+services:
+  pdf-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pdf_ocr_client
+    environment:
+      # IP/Hostname des Remote LLM-Servers angeben (z. B. 192.168.1.100 oder llm-server.local)
+      - OLLAMA_URL=http://192.168.1.100:11434
+      - OLLAMA_MODEL=qwen2.5:7b
+      - FILENAME_PATTERN=<YYYY-MM-DD>_<Sender>_<Subject>
+      - OCR_LANG=deu
+    volumes:
+      - ./data:/app/data

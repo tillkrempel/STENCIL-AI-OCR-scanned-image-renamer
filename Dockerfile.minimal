@@ -1,0 +1,22 @@
+FROM python:3.11-alpine
+
+# Installiere minimale Runtime-Dependencies auf Alpine-Basis
+RUN apk add --no-cache \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-data-deu \
+    ocrmypdf \
+    curl \
+    bash
+
+WORKDIR /app
+
+# Kopiere Skripte
+COPY process.py run.sh ./
+RUN chmod +x run.sh process.py
+
+# Installiere Ollama direkt inline im Alpine-Container für Single-Container-Betrieb
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Combined Entrypoint: Startet Ollama lokal im Hintergrund, zieht das Mini-Modell & führt Pipeline aus
+CMD sh -c "ollama serve & sleep 3 && ollama pull $OLLAMA_MODEL && /app/run.sh"

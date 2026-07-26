@@ -1,0 +1,45 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_service
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ollama-pull:
+    build: .
+    container_name: ollama_model_pull
+    depends_on:
+      - ollama
+    env_file:
+      - .env
+    volumes:
+      - ./detect_gpu.sh:/detect_gpu.sh
+    entrypoint: ["/bin/bash", "/detect_gpu.sh"]
+
+  pdf-processor:
+    build: .
+    container_name: pdf_ocr_processor
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      # Standard-Muster für die Dateibenennung
+      - FILENAME_PATTERN=<YYYY-MM-DD>_<Sender>_<Subject>
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  ollama_data:

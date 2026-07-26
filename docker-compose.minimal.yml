@@ -1,0 +1,17 @@
+services:
+  # Integrierte Minimal-Engine & Processor in einem leichten Container
+  pdf-minimal:
+    build:
+      context: .
+      dockerfile: Dockerfile.minimal
+    container_name: pdf_ocr_minimal
+    environment:
+      - OLLAMA_MODEL=qwen2.5:0.5b
+      - FILENAME_PATTERN=<YYYY-MM-DD>_<Sender>_<Subject>
+      - OCR_LANG=deu
+    volumes:
+      - ./data:/app/data
+      - ollama_min_data:/root/.ollama
+
+volumes:
+  ollama_min_data:

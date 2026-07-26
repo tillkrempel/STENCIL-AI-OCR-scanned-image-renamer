@@ -1,0 +1,23 @@
+services:
+  llm-server:
+    image: ollama/ollama:latest
+    container_name: remote_llm_server
+    ports:
+      - "11434:11434"
+    environment:
+      # Bindet auf alle Interfaces, damit Anfragen aus dem Netzwerk akzeptiert werden
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama_remote_data:/root/.ollama
+    restart: unless-stopped
+    # Optional: GPU-NVIDIA Passthrough aktivieren
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  ollama_remote_data:
