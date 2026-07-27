@@ -1,4 +1,4 @@
-STENCIL-OCR AI Driven Scanned Image Renamer 
+# STENCIL-OCR AI Driven Scanned Image Renamer 
 
 ## Pipeline
 An automated, hardened pipeline for ingesting scanned PDF documents, performing optical character recognition (OCR via **OCRmyPDF** / **Tesseract**), and applying structured file renaming using local Large Language Models (**Ollama** / **Gemma / Qwen**).
